@@ -4,7 +4,7 @@ from gtts import gTTS
 import os
 
 API_URL = "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill"
-HEADERS = {"Authorization": "Bearer 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"}
+HEADERS = {"Authorization": "Bearer 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"}
 
 def text_to_speech(text):
     tts = gTTS(text=text, lang='en')
@@ -48,7 +48,7 @@ def main():
     while True:
         user_input = speech_to_text()
         if user_input:
-            if "exit" in user_input.lower():
+            if "exit" == user_input.lower():
                 text_to_speech("Goodbye!")
                 print("AI: Goodbye!")
                 break
