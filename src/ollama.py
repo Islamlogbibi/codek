@@ -1,3 +1,7 @@
+# this is the code for ai chat 
+# it's ollama ai tiny model with text to speech and speech to text
+# it's a simple chatbot that can chat with you
+
 import numpy as np
 import requests
 import time
@@ -5,20 +9,22 @@ import threading
 import edge_tts
 import asyncio
 import sounddevice as sd
-import faster_whisper
+from faster_whisper import WhisperModel
 import queue
+import os
+import pygame
+import tempfile
+from gtts import gTTS
 
-# Load Faster Whisper model (optimized for English)
 print("Loading Whisper model...")
-model = faster_whisper.WhisperModel("tiny.en")
+model = WhisperModel("tiny.en")
 print("Whisper model loaded!")
 
-# Constants for audio
+
 RATE = 16000
 CHANNELS = 1
-RECORD_SECONDS = 5
+RECORD_SECONDS = 8
 
-# Global flag to track if TTS is playing
 is_playing = False
 audio_queue = queue.Queue()
 
@@ -26,14 +32,13 @@ def record_audio():
     """Record audio from the microphone if not playing TTS."""
     global is_playing
     if is_playing:
-        return None  # Skip recording if TTS is active
+        return None  
     
     print("Say something...")
     recording = sd.rec(int(RATE * RECORD_SECONDS), samplerate=RATE, channels=CHANNELS, dtype='int16')
     sd.wait()
     print("Recording finished.")
     
-    # Normalize the audio data
     audio_data = recording.flatten().astype(np.float32) / 32768.0
     return audio_data
 
@@ -65,41 +70,43 @@ def generate_response(text):
         print(f"Ollama error: {e}")
         return "I'm having trouble connecting to my brain."
 
-async def speak_response(text):
+def speak_response(text):
+    """Convert text to speech using gTTS, save to an MP3 file, and play it with pygame."""
     global is_playing
-    is_playing = True
+    print(f"Speaking: {text}")
+    is_playing = True  # Set flag to prevent recording during playback
+    
     try:
-        print(f"Speaking: {text}")
-        communicator = edge_tts.Communicate(text, "en-US-AriaNeural")
-        # Stream audio chunks and add them to a global queue for playback
-        await communicator.stream_async(audio_queue.put)
-        await asyncio.sleep(0.1)
+        # Generate speech and save to a temporary MP3 file
+        tts = gTTS(text=text, lang='en')
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+            temp_mp3 = fp.name
+        tts.save(temp_mp3)
+        
+        # Initialize pygame mixer
+        pygame.mixer.init()
+        pygame.mixer.music.load(temp_mp3)
+        pygame.mixer.music.play()
+        
+        # Wait for playback to finish
+        while pygame.mixer.music.get_busy():
+            pygame.time.Clock().tick(10)
+        
     except Exception as e:
         print(f"Error during TTS: {e}")
     finally:
-        is_playing = False
+        is_playing = False  # Reset flag after playing
+        if os.path.exists(temp_mp3):
+            os.remove(temp_mp3)
 
-def audio_player():
-    """Play audio from the queue using sounddevice."""
-    import sounddevice as sd
-    while True:
-        data = audio_queue.get()
-        if data is None:
-            break
-        # Play the audio data (assumed to be in a format acceptable to sounddevice)
-        sd.play(data, samplerate=24000)
-        sd.wait()
 
 def main():
     print("Test program for robot assistant with faster TTS and Whisper")
     print("Press Ctrl+C to exit")
 
-    player_thread = threading.Thread(target=audio_player, daemon=True)
-    player_thread.start()
 
     while True:
         try:
-            # Wait until audio playback is done before recording
             while is_playing:
                 time.sleep(0.1)
 
@@ -109,7 +116,6 @@ def main():
 
             print("Processing with Whisper...")
             segments, info = model.transcribe(audio_data)
-            # Concatenate all segments into one string
             recognized_text = " ".join(segment.text for segment in segments)
             print(f"Recognized: {recognized_text}")
 
@@ -120,7 +126,6 @@ def main():
             response = generate_response(recognized_text)
             print(f"Response: {response}")
 
-            # Run TTS asynchronously and wait for it to complete
             asyncio.run(speak_response(response))
 
         except KeyboardInterrupt:
@@ -131,3 +136,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# made with mabrouk logbibi and ali bahri
+# for a competition of robotics in biskra
+# we are the team of badji mokhtar annaba university HTIC club
