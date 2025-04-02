@@ -29,7 +29,6 @@ is_playing = False
 audio_queue = queue.Queue()
 
 def record_audio():
-    """Record audio from the microphone if not playing TTS."""
     global is_playing
     if is_playing:
         return None  
@@ -43,7 +42,6 @@ def record_audio():
     return audio_data
 
 def generate_response(text):
-    """Generate response using Ollama with predefined robot commands."""
     if "move forward" in text.lower():
         return "Moving forward"
     elif "turn left" in text.lower():
@@ -59,7 +57,7 @@ def generate_response(text):
                                  json={
                                      'model': 'llama2',
                                      'prompt': text,
-                                     'system': 'You are a helpful robot assistant. Your name is Codek and you have been built by the HTIC club at Badji Mokhtar Annaba University. Keep responses brief and friendly and do not use emojis.',
+                                     'system': 'You are a helpful robot assistant do not use emojis in your responses. Your name is Codek and you have been built by the HTIC club at Badji Mokhtar Annaba University. Keep responses brief and friendly and do not use emojis.',
                                      'stream': False
                                  })
         if response.status_code == 200:
@@ -71,38 +69,31 @@ def generate_response(text):
         return "I'm having trouble connecting to my brain."
 
 def speak_response(text):
-    """Convert text to speech using gTTS, save to an MP3 file, and play it with pygame."""
     global is_playing
     print(f"Speaking: {text}")
-    is_playing = True  # Set flag to prevent recording during playback
+    is_playing = True  
     
     try:
-        # Generate speech and save to a temporary MP3 file
         tts = gTTS(text=text, lang='en')
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
             temp_mp3 = fp.name
         tts.save(temp_mp3)
         
-        # Initialize pygame mixer
         pygame.mixer.init()
         pygame.mixer.music.load(temp_mp3)
         pygame.mixer.music.play()
-        
-        # Wait for playback to finish
         while pygame.mixer.music.get_busy():
             pygame.time.Clock().tick(10)
         
     except Exception as e:
         print(f"Error during TTS: {e}")
     finally:
-        is_playing = False  # Reset flag after playing
+        is_playing = False  
         if os.path.exists(temp_mp3):
             os.remove(temp_mp3)
 
 
 def main():
-    print("Test program for robot assistant with faster TTS and Whisper")
-    print("Press Ctrl+C to exit")
 
 
     while True:
